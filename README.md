@@ -62,6 +62,24 @@ lopen. De echte brandrisico's zitten in *hoe* je de stroom onderbreekt:
 De volledige analyse staat in **[SAFETY.md](SAFETY.md)**. Lees die voordat je
 op echte hardware aansluit.
 
+## Betrouwbaarheid: watchdogs tegen "mist net de 80%"
+
+Naast de fail-safe veiligheid vangt de app ook de *functionele* faalgevallen af
+(allemaal getest in `tests/test_watchdog.py`):
+
+* **Stop-marge** (`stop_margin`) — compenseert de vertraging van de cloud-SoC
+  zodat je rond 80% uitkomt i.p.v. erboven.
+* **Stale-SoC watchdog** (`soc_max_age`, `on_soc_lost`) — als de SoC te lang
+  niet ververst terwijl er geladen wordt: alarm, en optioneel preventief
+  pauzeren.
+* **Pauze-verificatie** (`pause_tolerance`) — blijft de SoC ná het pauzeren
+  stijgen, dan werkt de pauze niet (bv. verkeerd Modbus-register) → alarm.
+* **Heartbeat + notificaties** (`status_file`, `notify.webhook`) — schrijft elke
+  tick de status weg en stuurt alarmen naar een webhook, zodat je merkt als de
+  app eruit ligt.
+
+Zie `config.example.yaml` voor alle opties.
+
 ## Veilig testen zonder auto of laadpaal
 
 Voordat je iets op de echte auto/laadpaal aansluit kun je de hele logica

@@ -19,6 +19,7 @@ def _setup_logging(level: str) -> None:
 def _cmd_run(args: argparse.Namespace) -> int:
     from .charger import build_charger
     from .controller import Controller
+    from .notify import Notifier
     from .soc import build_soc_provider
 
     cfg = load_config(args.config)
@@ -26,7 +27,8 @@ def _cmd_run(args: argparse.Namespace) -> int:
 
     soc = build_soc_provider(cfg["soc"])
     charger = build_charger(cfg["charger"])
-    Controller(cfg, soc, charger).run()
+    notifier = Notifier(cfg.get("notify", {}))
+    Controller(cfg, soc, charger, notifier=notifier).run()
     return 0
 
 

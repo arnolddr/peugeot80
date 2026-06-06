@@ -23,6 +23,36 @@ session_drop: 10
 poll_interval: 120          # terwijl er NIET geladen wordt
 poll_interval_charging: 30  # tijdens het laden (vaker, om 80% niet te missen)
 
+# --- Nauwkeurigheid & watchdogs (vangen de niet-veiligheids-faalgevallen af) -
+
+# Stop-marge in procentpunten om vertraging van de SoC-bron te compenseren.
+# Bij de cloud (paar minuten vertraging) kun je hierdoor netjes rond de limiet
+# uitkomen i.p.v. erboven. Bv. 2 -> stop feitelijk bij (charge_limit - 2)%.
+stop_margin: 0
+
+# Stale-SoC watchdog: als de SoC zo lang (seconden) niet meer leesbaar/ververst
+# is terwijl er mogelijk geladen wordt, volgt een alarm.
+soc_max_age: 900
+
+# Wat te doen als de SoC te lang weg is: "hold" (niets, fail-safe doorladen tot
+# de auto/paal zelf stoppen) of "pause" (preventief stoppen met laden).
+on_soc_lost: hold
+
+# Pauze-verificatie: als de SoC ná het pauzeren toch meer dan dit aantal
+# procentpunten blijft stijgen, lijkt de pauze niet te werken (bv. verkeerd
+# Modbus-register) -> alarm.
+pause_tolerance: 1.5
+
+# Optioneel heartbeat/statusbestand: elke tick wordt hier de actuele status als
+# JSON weggeschreven. Een externe watchdog (cron/Home Assistant) kan zo zien of
+# de app nog leeft en of er alarmen zijn. Leeg laten = uit.
+# status_file: "/config/peugeot80_status.json"
+
+# Optionele notificaties: stuur alarmen naar een webhook (ntfy, Home Assistant,
+# Slack, ...). Leeg laten = alleen loggen.
+# notify:
+#   webhook: "https://ntfy.sh/mijn-laad-alarm"
+
 # ---------------------------------------------------------------------------
 # Accupercentage (SoC) uitlezen
 # ---------------------------------------------------------------------------
