@@ -56,12 +56,21 @@ class VirtualBattery:
 
 
 class SimSoc(SocProvider):
-    """SoC provider backed by a VirtualBattery."""
+    """SoC provider backed by a VirtualBattery.
 
-    def __init__(self, battery: VirtualBattery) -> None:
+    ``fail_after`` lets a test/demo simulate the SoC feed dying after N reads
+    (the controller then sees stale data).
+    """
+
+    def __init__(self, battery: VirtualBattery, fail_after: int | None = None) -> None:
         self.battery = battery
+        self.fail_after = fail_after
+        self._reads = 0
 
     def read(self) -> SocReading:
+        self._reads += 1
+        if self.fail_after is not None and self._reads > self.fail_after:
+            raise IOError("simulated SoC feed down")
         percent = self.battery.read_percent()
         return SocReading(percent=percent, charging=self.battery.is_charging)
 
@@ -84,3 +93,11 @@ class SimCharger(ChargerController):
 
     def resume(self) -> None:
         self.battery.charging_allowed = True
+
+
+class BrokenPauseCharger(SimCharger):
+    """A wallbox whose pause() silently does nothing -- mimics a wrong Modbus
+    register or a lost connection where the stop command never takes effect."""
+
+    def pause(self) -> None:  # noqa: D401 - intentionally a no-op
+        pass

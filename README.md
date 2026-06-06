@@ -107,6 +107,20 @@ Opties: `--limit` drempel, `--start` begin-SoC, `--rate` laadsnelheid (%/s),
 `--tick-seconds` snelheid van de demo. Met `-c config.yaml` leest hij je
 `charge_limit`/`hysteresis`/`resume_below` uit je eigen config.
 
+### Faalgevallen aantoonbaar testen
+
+`peugeot80 selftest` speelt de **faal-scenario's** end-to-end af tegen de
+simulator (met geïnjecteerde fouten) en laat live zien dat elke watchdog afgaat:
+
+```
+[1] Stop-marge -> stopt vroeg bij 78%                      ✅
+[2] Kapotte pauze (verkeerd register) -> alarm             ✅ 🔔
+[3] SoC-feed weg -> alarm + preventief stoppen             ✅ 🔔
+[4] Korte hapering -> geen vals alarm                      ✅
+[5] Onzin-SoC (150%) -> genegeerd                          ✅
+=== SELFTEST RESULTAAT: 5/5 GESLAAGD ✅ ===
+```
+
 De geautomatiseerde tests (`pytest`) draaien dezelfde controller tegen de
 simulator met een nep-klok, dus volledig deterministisch en zonder hardware.
 
