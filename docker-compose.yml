@@ -1,0 +1,10 @@
+services:
+  peugeot80:
+    build: .
+    container_name: peugeot80
+    restart: unless-stopped
+    volumes:
+      - ./config.yaml:/config/config.yaml:ro
+    # For an OBD dongle on a serial/USB port, expose it to the container:
+    # devices:
+    #   - "/dev/ttyUSB0:/dev/ttyUSB0"

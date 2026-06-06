@@ -1,0 +1,79 @@
+# peugeot80 configuratie -- kopieer naar config.yaml en pas aan.
+
+# Drempel waarbij het laden stopt (in %). "ongeveer 80%".
+charge_limit: 80
+
+# Optioneel: hervat laden als de accu hier weer ONDER zakt (bv. door verbruik
+# terwijl de stekker erin blijft). Zet op 0 om nooit automatisch te hervatten
+# (de auto laadt dan pas weer na opnieuw inpluggen). Voorkomt heen-en-weer
+# schakelen rond de drempel.
+resume_below: 0
+
+# Hysterese in procentpunten: pas onder (charge_limit - hysteresis) wordt
+# hervatten weer toegestaan. Voorkomt geklapper rond de drempel.
+hysteresis: 2
+
+# Poll-intervallen in seconden.
+poll_interval: 120          # terwijl er NIET geladen wordt
+poll_interval_charging: 30  # tijdens het laden (vaker, om 80% niet te missen)
+
+# ---------------------------------------------------------------------------
+# Accupercentage (SoC) uitlezen
+# ---------------------------------------------------------------------------
+soc:
+  provider: cloud           # cloud | obd
+
+  # provider: cloud -- via een draaiende psa-car-controller instantie.
+  # https://github.com/flobz/psa_car_controller
+  cloud:
+    base_url: "http://127.0.0.1:5000"
+    vin: "VR3XXXXXXXXXXXXXX"
+    timeout: 15
+
+  # provider: obd -- via een OBD-II dongle in de auto.
+  # python-OBD vereist (pip install "peugeot80[obd]").
+  obd:
+    # Seriële poort (USB/Bluetooth-rfcomm) of WiFi-socket-adres.
+    port: "/dev/ttyUSB0"        # of bv. "socket://192.168.0.10:35000"
+    baudrate: null              # null = autodetect
+    # SoC op de e-2008 (eCMP) zit niet in een standaard OBD-PID maar in een
+    # custom BMS-commando. Vul hier het juiste commando in (mode + PID, hex).
+    # Bevestig met `peugeot80 scan-obd` of community-bronnen voor de e-208/e-2008.
+    soc_mode: "22"
+    soc_pid: "D8AD"             # PLACEHOLDER -- verifieer voor jouw auto
+    soc_header: "6B4"           # CAN header, indien nodig
+    soc_formula: "A/2"          # ruwe waarde -> procent
+
+# ---------------------------------------------------------------------------
+# Laadpaal aansturen
+# ---------------------------------------------------------------------------
+charger:
+  provider: mennekes_modbus   # mennekes_modbus | cloud_delayed
+
+  # provider: mennekes_modbus -- AMTRON Xtra/Premium (HCC3) via Modbus TCP.
+  # Registers volgens de MENNEKES ECU Modbus TCP-spec. BEVESTIG met `peugeot80 scan`.
+  mennekes_modbus:
+    host: "192.168.1.50"
+    port: 502
+    unit_id: 1
+
+    # HEMS-stroomlimiet (holding register). Schrijven van 0 -> pauzeren,
+    # schrijven van max_current -> laden toestaan.
+    reg_hems_current_limit: 1000
+    # HEMS-vermogenslimiet (holding register, vanaf firmware 1.1.33). Optioneel.
+    reg_hems_power_limit: 1002
+    # CP-status (input register): A=geen voertuig, B=verbonden, C/D=laadt.
+    reg_cp_state: 122
+
+    min_current: 6            # A -- minimale laadstroom volgens IEC 61851
+    max_current: 16           # A -- jouw installatie (vaak 16 of 32)
+
+  # provider: cloud_delayed -- fallback voor palen zonder Modbus.
+  # Zet de auto via de Stellantis-cloud in "uitgesteld laden". Minder betrouwbaar.
+  cloud_delayed:
+    base_url: "http://127.0.0.1:5000"
+    vin: "VR3XXXXXXXXXXXXXX"
+    timeout: 15
+
+logging:
+  level: INFO               # DEBUG | INFO | WARNING | ERROR
