@@ -59,6 +59,15 @@ def _cmd_scan(args: argparse.Namespace) -> int:
                 start=args.start, count=args.count)
 
 
+def _cmd_scan_rtu(args: argparse.Namespace) -> int:
+    from .scan import scan_rtu
+
+    _setup_logging("INFO")
+    return scan_rtu(args.port, baudrate=args.baudrate, parity=args.parity,
+                    stopbits=args.stopbits, unit_id=args.unit_id,
+                    start=args.start, count=args.count)
+
+
 def _cmd_simulate(args: argparse.Namespace) -> int:
     from .controller import Controller
     from .simulator import SimCharger, SimSoc, VirtualBattery
@@ -259,6 +268,16 @@ def main(argv: list[str] | None = None) -> int:
     p_scan.add_argument("--start", type=int, default=0)
     p_scan.add_argument("--count", type=int, default=200)
     p_scan.set_defaults(func=_cmd_scan)
+
+    p_rtu = sub.add_parser("scan-rtu", help="probe a Compact/Start 2.0s over serial RS-485")
+    p_rtu.add_argument("port", help="serial port, e.g. /dev/ttyUSB0")
+    p_rtu.add_argument("--baudrate", type=int, default=57600)
+    p_rtu.add_argument("--parity", default="N")
+    p_rtu.add_argument("--stopbits", type=int, default=2)
+    p_rtu.add_argument("--unit-id", type=int, default=1)
+    p_rtu.add_argument("--start", type=lambda x: int(x, 0), default=0x0100)
+    p_rtu.add_argument("--count", type=int, default=256)
+    p_rtu.set_defaults(func=_cmd_scan_rtu)
 
     p_sim = sub.add_parser(
         "simulate",

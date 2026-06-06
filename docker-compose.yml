@@ -5,6 +5,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./config.yaml:/config/config.yaml:ro
-    # For an OBD dongle on a serial/USB port, expose it to the container:
+    # For an RS-485 adapter (AMTRON Compact 2.0s) or an OBD dongle on a
+    # serial/USB port, expose it to the container:
     # devices:
     #   - "/dev/ttyUSB0:/dev/ttyUSB0"

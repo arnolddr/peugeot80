@@ -34,6 +34,11 @@ De controller is bewust *fail-safe*:
 Worst case bij een bug/uitval = doorladen tot 100%. Dat is slecht voor de
 accu-levensduur, maar geen brandgevaar (auto en paal beveiligen zichzelf).
 
+> **AMTRON Compact 2.0s (Modbus RTU):** hier is het nóg sterker. De paal laadt
+> alleen zolang de app een heartbeat stuurt; valt de app/host weg, dan **stopt
+> het laden binnen ~10s**. Het neveneffect is dat de paal in deze modus alleen
+> laadt terwijl de app draait — draai 'm dus onder auto-restart.
+
 Deze gedragingen zijn allemaal afgedekt met tests in
 `tests/test_scenarios.py`.
 

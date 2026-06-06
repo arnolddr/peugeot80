@@ -84,7 +84,35 @@ soc:
 # Laadpaal aansturen
 # ---------------------------------------------------------------------------
 charger:
-  provider: mennekes_modbus   # mennekes_modbus | cloud_delayed
+  # mennekes_compact_rtu  -> AMTRON Compact 2.0s / Start 2.0s (RS-485 Modbus RTU)
+  # mennekes_modbus       -> AMTRON Xtra / Premium (HCC3, Modbus TCP)
+  # cloud_delayed         -> fallback zonder slimme paal (Stellantis-cloud)
+  provider: mennekes_compact_rtu
+
+  # provider: mennekes_compact_rtu -- AMTRON Compact 2.0s via RS-485 Modbus RTU.
+  # Vereist: Modbus aangezet (MENNEKES Configuration Tool + DIP S1-4 = ON) en
+  # een RS-485-verbinding. Besturing gebeurt via een continue heartbeat.
+  mennekes_compact_rtu:
+    # transport: serial (USB-RS485-adapter) of tcp (RS485<->WiFi-gateway, bv. Elfin EW11)
+    transport: serial
+    port: "/dev/ttyUSB0"     # serial: seriële poort | tcp: n.v.t.
+    # host: "192.168.1.60"   # tcp: IP van de gateway
+    # port: 502              # tcp: poort van de gateway
+    baudrate: 57600
+    parity: "N"
+    stopbits: 2              # docs: 8N2 (sommige opstellingen werken met 8N1)
+    unit_id: 1
+    word_order: little       # Mennekes: low word eerst (FLOAT32)
+    heartbeat_interval: 8     # seconden (<=8 aanbevolen; paal eist <=10)
+
+    min_current: 6
+    max_current: 16          # ZET OP JE INSTALLATIE-RATING (bv. 16 of 32)
+
+    # Registers (MENNEKES AMTRON Compact 2.0s RTU-spec v1.2). BEVESTIG met scan.
+    reg_heartbeat: 0x0D00        # schrijf 0x55AA
+    reg_charge_release: 0x0D05   # 0=stop, 1=laden toestaan
+    reg_current_setpoint: 0x0302 # FLOAT32, ampère
+    reg_cp_state: 0x0100         # status/CP-state (lezen)
 
   # provider: mennekes_modbus -- AMTRON Xtra/Premium (HCC3) via Modbus TCP.
   # Registers volgens de MENNEKES ECU Modbus TCP-spec. BEVESTIG met `peugeot80 scan`.

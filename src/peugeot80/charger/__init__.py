@@ -11,6 +11,10 @@ def build_charger(cfg: dict) -> ChargerController:
         from .mennekes_modbus import MennekesModbusCharger
 
         return MennekesModbusCharger(cfg.get("mennekes_modbus", {}))
+    if provider == "mennekes_compact_rtu":
+        from .mennekes_compact_rtu import MennekesCompactRtuCharger
+
+        return MennekesCompactRtuCharger(cfg.get("mennekes_compact_rtu", {}))
     if provider == "cloud_delayed":
         from .cloud_delayed import CloudDelayedCharger
 

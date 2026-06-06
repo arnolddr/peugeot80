@@ -28,9 +28,38 @@ laadpaal weer vrijgegeven.
 
 | Onderdeel | Eis |
 |---|---|
-| Laadpaal | MENNEKES **AMTRON Xtra** of **Premium** met **HCC3**-controller, software **≥ 1.13**, Modbus TCP aangezet. AMTRON **Start/Compact** heeft géén Modbus TCP — gebruik dan de `cloud_delayed` fallback. |
+| Laadpaal | **AMTRON Compact 2.0s / Start 2.0s** → RS-485 **Modbus RTU** (zie hieronder). **AMTRON Xtra / Premium** (HCC3) → Modbus TCP. Geen van beide mogelijk → `cloud_delayed` fallback. |
 | SoC-bron | Stellantis connected services (cloud) **of** een OBD-II dongle in de auto. |
 | Host | Iets dat 24/7 lokaal draait: Raspberry Pi, mini-PC, NAS met Docker, of Home Assistant. |
+
+## AMTRON Compact 2.0s / Start 2.0s (RS-485 Modbus RTU)
+
+Deze paal heeft **geen netwerkaansluiting**; besturing gaat via **RS-485 Modbus
+RTU**. Wat je nodig hebt:
+
+1. **Modbus aanzetten**: met de **MENNEKES Configuration Tool** (via RJ45) én de
+   DIP-schakelaar **S1-4 = ON**. (Open je de paal/wijzig je instellingen, betrek
+   dan je installateur i.v.m. garantie.)
+2. **RS-485-verbinding** naar je host, op één van twee manieren:
+   - **USB-RS485-adapter** in een Raspberry Pi naast de paal → `transport: serial`.
+   - **RS485↔WiFi-gateway** (bv. een **Elfin EW11**, ~€20) → `transport: tcp`,
+     dan praat de app via het netwerk met de gateway.
+3. **Besturingsmodel**: de app houdt een **heartbeat** (`0x55AA` → reg `0x0D00`,
+   elke ≤8s) in de lucht en zet de **release** (`0x0D05`) + **stroom** (`0x0302`).
+
+> **Belangrijk neveneffect (juist veilig):** zodra Modbus aanstaat, laadt de paal
+> **alleen terwijl deze app draait en toestemt**. Valt de app of de host weg, dan
+> stopt het laden binnen ~10s (heartbeat weg). Draai de app dus onder
+> auto-restart (Docker `restart: unless-stopped` of systemd) en gebruik het
+> `status_file`/webhook-alarm.
+
+Registers bevestigen:
+
+```bash
+peugeot80 scan-rtu /dev/ttyUSB0            # serial
+# of via een gateway:
+peugeot80 scan 192.168.1.60                # tcp naar de Elfin EW11
+```
 
 ## Welk AMTRON-model heb ik?
 
