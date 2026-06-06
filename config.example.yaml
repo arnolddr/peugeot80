@@ -13,6 +13,12 @@ resume_below: 0
 # hervatten weer toegestaan. Voorkomt geklapper rond de drempel.
 hysteresis: 2
 
+# Als de SoC zoveel procentpunten ONDER de limiet zakt, wordt dat als een
+# nieuwe laadsessie gezien (de auto is gereden) en mag er weer geladen worden,
+# ook als we een uitplug-event niet kunnen detecteren (relevant voor de
+# cloud-fallback die geen stekkerstatus kent).
+session_drop: 10
+
 # Poll-intervallen in seconden.
 poll_interval: 120          # terwijl er NIET geladen wordt
 poll_interval_charging: 30  # tijdens het laden (vaker, om 80% niet te missen)

@@ -16,6 +16,12 @@ from .base import ChargerController, ChargerState
 
 _LOG = logging.getLogger(__name__)
 
+# Absolute safety ceiling for a single-phase domestic AC charge point. We refuse
+# to be configured above this, and never *write* a current above max_current.
+# A HEMS limit can only ever LOWER the wallbox's own configured maximum, so this
+# is defence-in-depth on top of the wallbox's hardware limit.
+ABSOLUTE_MAX_CURRENT = 32
+
 
 class MennekesModbusCharger(ChargerController):
     def __init__(self, cfg: dict) -> None:
@@ -24,9 +30,31 @@ class MennekesModbusCharger(ChargerController):
         self.unit_id = cfg.get("unit_id", 1)
         self.reg_current_limit = cfg.get("reg_hems_current_limit", 1000)
         self.reg_cp_state = cfg.get("reg_cp_state", 122)
-        self.min_current = cfg.get("min_current", 6)
-        self.max_current = cfg.get("max_current", 16)
+        self.min_current = int(cfg.get("min_current", 6))
+        self.max_current = int(cfg.get("max_current", 16))
+
+        # Safety validation: max_current must match the installation's rating.
+        # Setting it too high could command a current the wiring/breaker cannot
+        # carry. We hard-fail rather than risk it.
+        if not 0 < self.max_current <= ABSOLUTE_MAX_CURRENT:
+            raise ValueError(
+                f"max_current={self.max_current}A is out of the safe range "
+                f"(1..{ABSOLUTE_MAX_CURRENT}A). Set it to your circuit/wallbox "
+                f"rating, never higher."
+            )
+        if self.min_current < 6:
+            _LOG.warning("min_current < 6A is below the IEC 61851 minimum")
+
         self._client = ModbusTcpClient(self.host, port=self.port)
+
+    def _clamp_current(self, amps: int) -> int:
+        """Never command a current above the configured installation limit."""
+        if amps <= 0:
+            return 0
+        clamped = max(self.min_current, min(amps, self.max_current))
+        if clamped != amps:
+            _LOG.warning("clamped requested %dA to %dA (installation limit)", amps, clamped)
+        return clamped
 
     def _ensure_connected(self) -> None:
         if not self._client.connected:
@@ -35,20 +63,30 @@ class MennekesModbusCharger(ChargerController):
                     f"cannot reach Mennekes wallbox at {self.host}:{self.port}"
                 )
 
+    def _unit_kw(self) -> dict:
+        """pymodbus renamed the slave/unit kwarg to device_id in 3.x."""
+        import inspect
+
+        params = inspect.signature(self._client.read_holding_registers).parameters
+        key = "device_id" if "device_id" in params else "slave"
+        return {key: self.unit_id}
+
     def _read_register(self, address: int) -> int:
         self._ensure_connected()
-        rr = self._client.read_holding_registers(address, count=1, slave=self.unit_id)
+        kw = self._unit_kw()
+        rr = self._client.read_holding_registers(address, count=1, **kw)
         if rr.isError():
             # Some registers are exposed as input registers; fall back.
-            rr = self._client.read_input_registers(address, count=1, slave=self.unit_id)
+            rr = self._client.read_input_registers(address, count=1, **kw)
         if rr.isError():
             raise IOError(f"modbus read error at register {address}: {rr}")
         return rr.registers[0]
 
     def _write_current_limit(self, amps: int) -> None:
+        amps = self._clamp_current(amps)
         self._ensure_connected()
         wr = self._client.write_register(
-            self.reg_current_limit, int(amps), slave=self.unit_id
+            self.reg_current_limit, int(amps), **self._unit_kw()
         )
         if wr.isError():
             raise IOError(f"modbus write error at register {self.reg_current_limit}: {wr}")

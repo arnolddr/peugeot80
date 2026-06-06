@@ -45,6 +45,23 @@ firmware-/modelregisters en dumpt een registerbereik. Lukt de verbinding →
 je hebt een Xtra/Premium en de lokale aanpak werkt. Geen verbinding → waarschijnlijk
 een Start/Compact (gebruik dan `cloud_delayed`).
 
+## ⚠️ Veiligheid (brandrisico) — lees dit eerst
+
+De app is **fail-safe** ontworpen: als hij faalt of het netwerk wegvalt, laadt
+de auto hooguit door tot 100% (accu-slijtage) — er gaat nooit te veel stroom
+lopen. De echte brandrisico's zitten in *hoe* je de stroom onderbreekt:
+
+* **Nooit** schakelen met een gewone slimme stekker/stopcontact (continu hoge
+  stroom → oververhitting → brand). Daarom biedt deze app géén smart-plug aan.
+* **Nooit** de voeding onder belasting hard wegschakelen. Stoppen gaat via het
+  Control-Pilot-signaal (Mennekes HEMS-limiet → 0), zodat de auto netjes
+  afbouwt — de manier die de norm voorschrijft.
+* **`max_current` nooit hoger zetten dan je circuit/paal aankan.** De app
+  weigert onveilige waarden en clamp't elke geschreven stroom.
+
+De volledige analyse staat in **[SAFETY.md](SAFETY.md)**. Lees die voordat je
+op echte hardware aansluit.
+
 ## Veilig testen zonder auto of laadpaal
 
 Voordat je iets op de echte auto/laadpaal aansluit kun je de hele logica
