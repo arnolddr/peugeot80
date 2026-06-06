@@ -45,6 +45,36 @@ firmware-/modelregisters en dumpt een registerbereik. Lukt de verbinding →
 je hebt een Xtra/Premium en de lokale aanpak werkt. Geen verbinding → waarschijnlijk
 een Start/Compact (gebruik dan `cloud_delayed`).
 
+## Veilig testen zonder auto of laadpaal
+
+Voordat je iets op de echte auto/laadpaal aansluit kun je de hele logica
+risicovrij uitproberen met de ingebouwde **simulator** (een virtuele accu +
+virtuele Mennekes). De *échte* controller draait eroverheen; er gaat geen enkel
+commando naar echte hardware.
+
+```bash
+peugeot80 simulate --start 76 --rate 4 --limit 80
+```
+
+Je ziet de SoC oplopen, het laden stoppen op de limiet, de SoC daarna vlak
+blijven (paal staat echt uit) en bij "uitpluggen" de latch resetten:
+
+```
+SoC=79.8% ... charger=charging
+SoC=80.0% ... reached limit -- pausing charge
+--> Laden GEPAUZEERD bij 80.0%
+--> Na pauze stijgt SoC niet verder (drift +0.00%)
+--> Auto losgekoppeld (unplug) -- clearing pause latch
+=== RESULTAAT: GESLAAGD ✅ ===
+```
+
+Opties: `--limit` drempel, `--start` begin-SoC, `--rate` laadsnelheid (%/s),
+`--tick-seconds` snelheid van de demo. Met `-c config.yaml` leest hij je
+`charge_limit`/`hysteresis`/`resume_below` uit je eigen config.
+
+De geautomatiseerde tests (`pytest`) draaien dezelfde controller tegen de
+simulator met een nep-klok, dus volledig deterministisch en zonder hardware.
+
 ## Installatie
 
 ```bash

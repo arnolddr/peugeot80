@@ -57,6 +57,67 @@ def _cmd_scan(args: argparse.Namespace) -> int:
                 start=args.start, count=args.count)
 
 
+def _cmd_simulate(args: argparse.Namespace) -> int:
+    from .controller import Controller
+    from .simulator import SimCharger, SimSoc, VirtualBattery
+
+    _setup_logging("INFO")
+
+    cfg = load_config(args.config) if args.config else {}
+    limit = args.limit if args.limit is not None else float(cfg.get("charge_limit", 80))
+    resume_below = float(cfg.get("resume_below", 0))
+    hysteresis = float(cfg.get("hysteresis", 2))
+
+    battery = VirtualBattery(percent=args.start, rate_pct_per_sec=args.rate)
+    soc = SimSoc(battery)
+    charger = SimCharger(battery)
+    ctl = Controller(
+        {
+            "charge_limit": limit,
+            "resume_below": resume_below,
+            "hysteresis": hysteresis,
+            "poll_interval": 1,
+            "poll_interval_charging": 1,
+        },
+        soc,
+        charger,
+    )
+
+    print(f"\n=== SIMULATIE: laden tot {limit:.0f}% (start {args.start:.0f}%, "
+          f"{args.rate:.1f}%/s) ===\n")
+
+    import time
+
+    # Fase 1: laden tot de controller pauzeert bij de limiet.
+    for _ in range(args.max_ticks):
+        ctl.tick()
+        if ctl._paused_at_limit:
+            break
+        time.sleep(args.tick_seconds)
+    else:
+        print("\nFOUT: limiet niet bereikt binnen max_ticks")
+        return 1
+
+    paused_at = battery.read_percent()
+    print(f"\n--> Laden GEPAUZEERD bij {paused_at:.1f}%\n")
+
+    # Fase 2: bevestig dat de SoC niet verder stijgt (paal staat echt uit).
+    for _ in range(3):
+        time.sleep(args.tick_seconds)
+        ctl.tick()
+    drift = battery.read_percent() - paused_at
+    print(f"\n--> Na pauze stijgt SoC niet verder (drift {drift:+.2f}%)\n")
+
+    # Fase 3: stekker eruit -> latch moet resetten voor de volgende sessie.
+    print("--> Auto losgekoppeld (unplug)\n")
+    battery.unplug()
+    ctl.tick()
+
+    ok = abs(drift) < 0.5 and not ctl._paused_at_limit
+    print("=== RESULTAAT: " + ("GESLAAGD ✅" if ok else "MISLUKT ❌") + " ===\n")
+    return 0 if ok else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="peugeot80", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -76,6 +137,20 @@ def main(argv: list[str] | None = None) -> int:
     p_scan.add_argument("--start", type=int, default=0)
     p_scan.add_argument("--count", type=int, default=200)
     p_scan.set_defaults(func=_cmd_scan)
+
+    p_sim = sub.add_parser(
+        "simulate",
+        help="run the controller against a virtual battery+wallbox (no hardware)",
+    )
+    p_sim.add_argument("-c", "--config", default=None,
+                       help="optional config.yaml to read charge_limit etc. from")
+    p_sim.add_argument("--limit", type=float, default=None, help="override charge limit %%")
+    p_sim.add_argument("--start", type=float, default=75.0, help="starting SoC %%")
+    p_sim.add_argument("--rate", type=float, default=2.0, help="charge speed %%/sec")
+    p_sim.add_argument("--tick-seconds", type=float, default=0.5,
+                       help="real seconds between simulated ticks")
+    p_sim.add_argument("--max-ticks", type=int, default=200)
+    p_sim.set_defaults(func=_cmd_simulate)
 
     args = parser.parse_args(argv)
     return args.func(args)
